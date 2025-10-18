@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+extern uint64_t timestamp;
+extern pthread_t counting_thread;
+
 #define timer_read(x) x = timestamp
 // #define timer_read(x) __asm__ volatile("mrs %[time], S3_2_c15_c0_0" :
 // [time]"=r"(x));
