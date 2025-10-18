@@ -1,13 +1,14 @@
 #include "timing.h"
 
-// XXX Maybe don't do it atomically
 void *counting(void *ctx) {
-  __asm__ volatile("loop:\n"
-                   "    LOCK INCQ (%[ctx])\n"
-                   "    JMP loop\n"
+  __asm__ volatile("MOVQ (%[ctx]), %%rax\n"
+                   "loop:\n"
+                   "    addq $1, %%rax\n"
+                   "    movq %%rax, (%[ctx])\n"
+                   "    jmp loop\n"
                    :
                    : [ctx] "r"(ctx)
-                   : "memory");
+                   : "%rax", "memory");
   return NULL;
 }
 
