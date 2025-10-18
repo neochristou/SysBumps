@@ -5,7 +5,7 @@ VPATH = $(CURDIR) $(COMDIR)
 
 COMDIR = ../common
 
-CFLAGS = -w -I./ -I$(COMDIR)
+CFLAGS = -w -I./ -I$(COMDIR) 
 
 #SRCS = $(foreach dir, ./ $(COMDIR), $(wildcard $(dir)/*.c))
 #SRCS := $(notdir $(SRCS))
@@ -16,7 +16,7 @@ all : $(TARGET)
 	rm -f $(OBJS)
 	
 $(TARGET) : $(OBJS)
-	$(CC) -o $(TARGET) $(OBJS)
+	$(CC) -o $(TARGET) $(OBJS) -lpthread
 
 .c.o :
 	$(CC) $(CFLAGS) -c -o $@ $< 
