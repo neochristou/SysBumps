@@ -1,5 +1,8 @@
 #include "timing.h"
 
+uint64_t timestamp;
+pthread_t counting_thread;
+
 void *counting(void *ctx) {
   __asm__ volatile("MOVQ (%[ctx]), %%rax\n"
                    "loop:\n"
