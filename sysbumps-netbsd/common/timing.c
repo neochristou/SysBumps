@@ -2,6 +2,7 @@
 
 uint64_t timestamp;
 pthread_t counting_thread;
+uint64_t timer_overhead;
 
 void *counting(void *ctx) {
   __asm__ volatile("MOVQ (%[ctx]), %%rax\n"

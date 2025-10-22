@@ -16,30 +16,64 @@
   __asm__ volatile("prefetchw (%[addr])" ::[addr] "r"(x) : "memory")
 #define memory_fence() __asm__ volatile("mfence\nlfence" ::: "memory")
 
-static inline __attribute__((always_inline)) uint64_t
-probe_access(void *address) {
-  register uint64_t start, end;
-  memory_fence();
-  timer_read(start);
-  memory_fence();
-  memory_access(address);
-  memory_fence();
-  timer_read(end);
-  memory_fence();
-  return end - start;
+static inline __attribute__((always_inline)) unsigned long
+probe_access(const char *addr) {
+  unsigned long t1;    /* start time */
+  unsigned long t2;    /* end time */
+  unsigned long dummy; /* dummy variable to load *addr into */
+
+  /*
+   * Note: according to the `rdtsc` manual, the high bits
+   * of %rax and %rdx are cleared
+   */
+  asm __volatile__("mfence               \n"
+                   "lfence               \n"
+                   "rdtsc                \n"
+                   "lfence               \n"
+                   "movq %%rax, %[start] \n"
+                   "movq (%[in]), %[out] \n"
+                   "lfence               \n"
+                   "rdtsc                \n"
+                   "movq %%rax, %[stop]  \n"
+                   /* output */
+                   : [start] "=&r"(t1), [stop] "=&r"(t2), [out] "=&r"(dummy)
+                   /* input */
+                   : [in] "p"(addr)
+                   /* clobber */
+                   : "%rax", "%rdx", "memory");
+
+  /* Return time of load (ldr) and don't count timing overhead */
+  return t2 - t1 - timer_overhead;
 }
 
-static inline __attribute__((always_inline)) uint64_t
-probe_prefetch(void *address) {
-  register uint64_t start, end;
-  memory_fence();
-  timer_read(start);
-  memory_fence();
-  memory_prefetch(address);
-  memory_fence();
-  timer_read(end);
-  memory_fence();
-  return end - start;
+static inline __attribute__((always_inline)) unsigned long
+probe_prefetch(const char *addr) {
+  unsigned long t1;    /* start time */
+  unsigned long t2;    /* end time */
+  unsigned long dummy; /* dummy variable to load *addr into */
+
+  /*
+   * Note: according to the `rdtsc` manual, the high bits
+   * of %rax and %rdx are cleared
+   */
+  asm __volatile__("mfence               \n"
+                   "lfence               \n"
+                   "rdtsc                \n"
+                   "lfence               \n"
+                   "movq %%rax, %[start] \n"
+                   "prefetchw (%[in])    \n"
+                   "lfence               \n"
+                   "rdtsc                \n"
+                   "movq %%rax, %[stop]  \n"
+                   /* output */
+                   : [start] "=&r"(t1), [stop] "=&r"(t2)
+                   /* input */
+                   : [in] "p"(addr)
+                   /* clobber */
+                   : "%rax", "%rdx", "memory");
+
+  /* Return time of load (ldr) and don't count timing overhead */
+  return t2 - t1 - timer_overhead;
 }
 
 static inline __attribute__((always_inline)) void prime(void **eset) {
