@@ -7,10 +7,10 @@
 
 #define RESULT_FILE "../util/res"
 
-#define KER_START 0xfffffe000f004000
-#define KER_SIZE 0x67E8000
-#define KER_END   ((0xfffffe002f000000 + KER_SIZE + 0x4000))
-#define DATA_END_OFFSET 0x52D8000
+#define KER_START 0xffffffff80200000
+#define KER_SIZE 0x1600000
+#define KER_END   ((0xffffffff81779880 + 0x86780 + 0x4000))
+#define DATA_END_OFFSET (0x1579880 + 0x86780)
 #define CNT 1
 
 #define ALIGN_SIZE 0x4000
