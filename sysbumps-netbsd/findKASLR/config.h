@@ -16,8 +16,11 @@
 #define ALIGN_SIZE 0x4000
 #define NUM_SLOT ((KER_END - KER_START)/ALIGN_SIZE)
 #define ITERATION 10
-#define ESET_OFFSET 0x400000
-#define ESET_SIZE 12
+// #define ESET_OFFSET 0x400000
+#define ESET_OFFSET 0x100000
+#define ESET_SIZE 6
+
+#define TRAINING_ITERS 6
 
 #endif
 

