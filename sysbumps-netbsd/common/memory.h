@@ -61,7 +61,7 @@ probe_prefetch(const char *addr) {
                    "rdtsc                \n"
                    "lfence               \n"
                    "movq %%rax, %[start] \n"
-                   "prefetchw (%[in])    \n"
+                   "prefetchw %[in]      \n"
                    "lfence               \n"
                    "rdtsc                \n"
                    "movq %%rax, %[stop]  \n"
