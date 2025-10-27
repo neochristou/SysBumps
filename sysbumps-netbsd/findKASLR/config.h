@@ -16,9 +16,13 @@
 #define ALIGN_SIZE 0x1000
 #define NUM_SLOT ((KERN_MAP_MAX_ADDR - KERN_MAP_MIN_ADDR) / ALIGN_SIZE)
 #define ITERATION 10
-// #define ESET_OFFSET 0x400000
-#define ESET_OFFSET 0x100000
-#define ESET_SIZE 6
+#define PAGE_SIZE     4096
+#define L2_TLB_SETS   256
+#define L2_TLB_WAYS   6
+// Original ESET_OFFSET from sysbumps = 0x400000
+#define ESET_OFFSET   (L2_TLB_SETS * PAGE_SIZE)
+// Original ESET_SIZE = 12
+#define ESET_SIZE     L2_TLB_WAYS
 
 #define TRAINING_ITERS 6
 

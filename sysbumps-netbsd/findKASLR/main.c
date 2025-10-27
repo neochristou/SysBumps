@@ -10,7 +10,7 @@
 #include <time.h>
 #include <unistd.h>
 
-extern uint64_t timer_overhead;
+uint64_t timer_overhead;
 char *eset_data;
 
 uint64_t *res;
@@ -149,6 +149,6 @@ int main(int argc, char *argv[]) {
   printf("kernel map addr\t= \033[1;31m0x%llx\033[0m\n", kernel_map_addr);
   printf("Time to break KASLR\t= %.2fs\n", diff);
   printf("==============================================\n");
-  stop_timer();
+  //stop_timer();
   return 0;
 }

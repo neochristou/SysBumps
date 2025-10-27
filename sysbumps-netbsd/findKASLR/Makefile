@@ -10,7 +10,7 @@ CFLAGS = -w -I./ -I$(COMDIR)
 #SRCS = $(foreach dir, ./ $(COMDIR), $(wildcard $(dir)/*.c))
 #SRCS := $(notdir $(SRCS))
 #OBJS = $(SRCS:.c=.o)
-OBJS = main.o memory.o timing.o
+OBJS = main.o memory.o
 
 all : $(TARGET)
 	rm -f $(OBJS)
