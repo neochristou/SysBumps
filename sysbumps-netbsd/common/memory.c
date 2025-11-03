@@ -242,7 +242,7 @@ size_t hit_accurate(size_t addr, size_t tries) {
 }
 
 // static inline __attribute__((always_inline))
-void prime(void **eset_stlb) {
+void prime_stlb(void **eset_stlb) {
   memory_fence();
   for (int i = 0; i < STLB_EVSET_SIZE_4K; i++) {
     maccess(eset_stlb[i]);
@@ -250,7 +250,7 @@ void prime(void **eset_stlb) {
   memory_fence();
 }
 
-void prime_l1(void **eset_dtlb) {
+void prime_dtlb(void **eset_dtlb) {
   memory_fence();
   for (int i = 0; i < DTLB_EVSET_SIZE_4K; i++) {
     maccess(eset_dtlb[i]);
@@ -259,7 +259,7 @@ void prime_l1(void **eset_dtlb) {
 }
 
 // static inline __attribute__((always_inline))
-uint64_t probe(void **eset) {
+uint64_t probe_stlb(void **eset) {
   uint64_t time = 0, tmp = 0;
   memory_fence();
   // for (int i = 0; i < STLB_EVSET_SIZE_4K; i++) {
@@ -274,7 +274,7 @@ uint64_t probe(void **eset) {
   return time;
 }
 
-uint64_t probe_pc(void **eset) {
+uint64_t probe_stlb_pc(void **eset) {
   unsigned long t1; /* start time */
   unsigned long t2; /* end time */
   unsigned long dummy;
@@ -299,7 +299,7 @@ uint64_t probe_pc(void **eset) {
   return t2 - t1 - timer_overhead;
 }
 
-uint64_t probe_l1_pc(void **eset) {
+uint64_t probe_dtlb_pc(void **eset) {
   unsigned long t1; /* start time */
   unsigned long t2; /* end time */
   unsigned long dummy;
@@ -324,7 +324,7 @@ uint64_t probe_l1_pc(void **eset) {
   return t2 - t1 - timer_overhead;
 }
 
-uint64_t probe_l1(void **eset) {
+uint64_t probe_dtlb(void **eset) {
   uint64_t time = 0, tmp = 0;
   memory_fence();
   for (int i = 0; i < DTLB_EVSET_SIZE_4K; i++) {
@@ -338,8 +338,7 @@ uint64_t probe_l1(void **eset) {
   return time;
 }
 
-void gen_eset(size_t addr, void **eset_stlb, void **eset_dtlb) {
-  size_t stlb_set = STLB_SET_4K(addr);
+void gen_eset_dtlb(size_t addr, void **eset_dtlb) {
   size_t dtlb_set = DTLB_SET_4K(addr);
   size_t flush_base = (size_t)flush_set;
   flush_base = (((flush_base >> (PAGESIZE_4K + STLB_HASHSIZE_4K * 2)))
@@ -358,9 +357,17 @@ void gen_eset(size_t addr, void **eset_stlb, void **eset_dtlb) {
     maccess((void *)evict_addr);
     eset_dtlb[i] = (void *)evict_addr;
   }
+}
 
+void gen_eset_stlb(size_t addr, void **eset_stlb) {
+  size_t stlb_set = STLB_SET_4K(addr);
+  size_t flush_base = (size_t)flush_set;
+  flush_base = (((flush_base >> (PAGESIZE_4K + STLB_HASHSIZE_4K * 2)))
+                << (PAGESIZE_4K + STLB_HASHSIZE_4K * 2)) +
+               (1UL << (PAGESIZE_4K + STLB_HASHSIZE_4K * 2));
+
+  // printf("Orig set: %lu\n", stlb_set);
   // stlb
-  // TODO why * 2?
   // for (size_t i = 0; i < STLB_WAYS_4K * 2; i++) {
   for (size_t i = 0; i < STLB_EVSET_SIZE_4K; i++) {
     size_t evict_addr = (flush_base + (stlb_set << PAGESIZE_4K)) ^
@@ -373,8 +380,7 @@ void gen_eset(size_t addr, void **eset_stlb, void **eset_dtlb) {
   }
 }
 
-void gen_eset_pc(size_t addr, void **eset_stlb, void **eset_dtlb) {
-  size_t stlb_set = STLB_SET_4K(addr);
+void gen_eset_dtlb_pc(size_t addr, void **eset_dtlb) {
   size_t dtlb_set = DTLB_SET_4K(addr);
   size_t flush_base = (size_t)flush_set;
   flush_base = (((flush_base >> (PAGESIZE_4K + STLB_HASHSIZE_4K * 2)))
@@ -396,9 +402,16 @@ void gen_eset_pc(size_t addr, void **eset_stlb, void **eset_dtlb) {
   for (size_t i = 0; i < DTLB_EVSET_SIZE_4K - 1; i++) {
     *(uint64_t *)eset_dtlb[i] = (uint64_t)eset_dtlb[i + 1];
   }
+}
+
+void gen_eset_stlb_pc(size_t addr, void **eset_stlb) {
+  size_t stlb_set = STLB_SET_4K(addr);
+  size_t flush_base = (size_t)flush_set;
+  flush_base = (((flush_base >> (PAGESIZE_4K + STLB_HASHSIZE_4K * 2)))
+                << (PAGESIZE_4K + STLB_HASHSIZE_4K * 2)) +
+               (1UL << (PAGESIZE_4K + STLB_HASHSIZE_4K * 2));
 
   // stlb
-  // TODO why * 2?
   // for (size_t i = 0; i < STLB_WAYS_4K * 2; i++) {
   for (size_t i = 0; i < STLB_EVSET_SIZE_4K; i++) {
     size_t evict_addr = (flush_base + (stlb_set << PAGESIZE_4K)) ^

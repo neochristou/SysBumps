@@ -63,19 +63,20 @@
 
 #define memory_fence() __asm__ volatile("mfence\nlfence" ::: "memory")
 
-void gen_eset(size_t addr, void **eset_stlb, void **eset_dtlb);
-void gen_eset_pc(size_t addr, void **eset_stlb, void **eset_dtlb);
-void prime(void **eset_stlb);
-void prime_l1(void **eset_dtlb);
-uint64_t probe(void **eset);
-uint64_t probe_pc(void **eset);
-uint64_t probe_l1(void **eset);
-uint64_t probe_l1_pc(void **eset);
+void gen_eset_stlb(size_t addr, void **eset_stlb);
+void gen_eset_dtlb(size_t addr, void **eset_dtlb);
+void gen_eset_stlb_pc(size_t addr, void **eset_stlb);
+void gen_eset_dtlb_pc(size_t addr, void **eset_dtlb);
+void prime_stlb(void **eset_stlb);
+void prime_dtlb(void **eset_dtlb);
+uint64_t probe_stlb(void **eset);
+uint64_t probe_stlb_pc(void **eset);
+uint64_t probe_dtlb(void **eset);
+uint64_t probe_dtlb_pc(void **eset);
 void get_timer_overhead(void);
 void pin_to_core(size_t core);
 void init_tlb_flush(void);
 void maccess(void *p);
-void cache_flush(void **eset);
 // void gen_eset_sysbumps(size_t target, void **eset_l1, void **eset_l2, size_t base_offset);
 
 #endif

