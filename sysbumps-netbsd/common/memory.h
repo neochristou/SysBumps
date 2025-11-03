@@ -1,99 +1,81 @@
-#ifndef MEMORY_H
-#define MEMORY_H
+#ifndef TLB_FLUSH_H
+#define TLB_FLUSH_H
 
-#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 
-#include "config.h"
-#include "timing.h"
+#define PAGESIZE_4K 12
+#define PAGESIZE_2M 21
+#define PAGE_4K 0x1000
 
-#define memory_access(x)                                                       \
-  __asm__ volatile("movq (%[addr]), %%rax" ::[addr] "r"(x) : "%rax", "memory")
-#define memory_prefetch(x)                                                     \
-  __asm__ volatile("prefetchw (%[addr])" ::[addr] "r"(x) : "memory")
+#define HUGEPAGES 128
+
+/**
+ * TLB settings
+ */
+// data TLB: 2M/4M pages, 4-way, 32 entries (8 sets, 2^3)
+// data TLB: 1G pages, 4-way, 4 entries
+// data TLB: 4K pages, 4-way, 64 entries (16 sets, 2^4)
+// instruction TLB: 2M/4M pages, fully, 8 entries
+// instruction TLB: 4K, 8-way, 64 entries
+// L2 TLB: 4K/2M pages, 6-way, 1536 entries (256 sets, 2^8, this might be wrong, could be 12-way)
+//
+// Hashsize is probably the number of sets because we logical and with this to
+// get the set number
+#define STLB_HASHSIZE_4K 7
+#define STLB_HASHSIZE_2M 7
+#define DTLB_HASHSIZE_4K 4
+#define DTLB_HASHSIZE_2M 3
+#define STLB_WAYS_4K 12
+#define STLB_WAYS_2M 12
+#define DTLB_WAYS_4K 4
+#define DTLB_WAYS_2M 3
+#define STLB_EVSET_SIZE_4K (STLB_WAYS_4K)
+#define STLB_EVSET_SIZE_2M (STLB_WAYS_2M)
+#define DTLB_EVSET_SIZE_4K (DTLB_WAYS_4K)
+#define DTLB_EVSET_SIZE_2M (DTLB_WAYS_2M)
+// #define STLB_WAYS_4K 12
+// #define STLB_WAYS_2M 8
+// #define DTLB_WAYS_4K 6
+// #define DTLB_WAYS_2M 4
+#define STLB_HASHMASK_4K ((1 << STLB_HASHSIZE_4K) - 1)
+#define STLB_HASHMASK_2M ((1 << STLB_HASHSIZE_2M) - 1)
+#define DTLB_HASHMASK_4K ((1 << DTLB_HASHSIZE_4K) - 1)
+#define DTLB_HASHMASK_2M ((1 << DTLB_HASHSIZE_2M) - 1)
+#define STLB_SET_4K(addr)                                                      \
+  (((addr >> PAGESIZE_4K) ^ (addr >> (PAGESIZE_4K + STLB_HASHSIZE_4K))) &      \
+   STLB_HASHMASK_4K)
+#define STLB_SET_2M(addr) (((addr >> PAGESIZE_2M)) & STLB_HASHMASK_2M)
+#define DTLB_SET_4K(addr) ((addr >> PAGESIZE_4K) & DTLB_HASHMASK_4K)
+#define DTLB_SET_2M(addr) ((addr >> PAGESIZE_2M) & DTLB_HASHMASK_2M)
+
+#define FLUSH_SET_SIZE                                                         \
+  ((1UL << (PAGESIZE_4K + STLB_HASHSIZE_4K * 2))) * 4
+ // 12bit page size 4096 times to cover up to 3072 TLB entries
+#define TLB_EVICTION_SIZE                                                      \
+  (1UL << (PAGESIZE_4K +12))
+
+
 #define memory_fence() __asm__ volatile("mfence\nlfence" ::: "memory")
 
-static inline __attribute__((always_inline)) unsigned long
-probe_access(const char *addr) {
-  unsigned long t1;    /* start time */
-  unsigned long t2;    /* end time */
-  unsigned long dummy; /* dummy variable to load *addr into */
-
-  /*
-   * Note: according to the `rdtsc` manual, the high bits
-   * of %rax and %rdx are cleared
-   */
-  asm __volatile__("mfence               \n"
-                   "lfence               \n"
-                   "rdtsc                \n"
-                   "lfence               \n"
-                   "movq %%rax, %[start] \n"
-                   "movq (%[in]), %[out] \n"
-                   "lfence               \n"
-                   "rdtsc                \n"
-                   "movq %%rax, %[stop]  \n"
-                   /* output */
-                   : [start] "=&r"(t1), [stop] "=&r"(t2), [out] "=&r"(dummy)
-                   /* input */
-                   : [in] "p"(addr)
-                   /* clobber */
-                   : "%rax", "%rdx", "memory");
-
-  /* Return time of load (ldr) and don't count timing overhead */
-  return t2 - t1 - timer_overhead;
-}
-
-static inline __attribute__((always_inline)) unsigned long
-probe_prefetch(const char *addr) {
-  unsigned long t1;    /* start time */
-  unsigned long t2;    /* end time */
-  unsigned long dummy; /* dummy variable to load *addr into */
-
-  /*
-   * Note: according to the `rdtsc` manual, the high bits
-   * of %rax and %rdx are cleared
-   */
-  asm __volatile__("mfence               \n"
-                   "lfence               \n"
-                   "rdtsc                \n"
-                   "lfence               \n"
-                   "movq %%rax, %[start] \n"
-                   "prefetchw %[in]      \n"
-                   "lfence               \n"
-                   "rdtsc                \n"
-                   "movq %%rax, %[stop]  \n"
-                   /* output */
-                   : [start] "=&r"(t1), [stop] "=&r"(t2)
-                   /* input */
-                   : [in] "p"(addr)
-                   /* clobber */
-                   : "%rax", "%rdx", "memory");
-
-  /* Return time of load (ldr) and don't count timing overhead */
-  return t2 - t1 - timer_overhead;
-}
-
-static inline __attribute__((always_inline)) void prime(void **eset) {
-  for (int i = 0; i < ESET_SIZE; i++) {
-    memory_fence();
-    memory_access(eset[i]);
-    memory_fence();
-  }
-}
-
-static inline __attribute__((always_inline)) uint64_t probe(void **eset) {
-  uint64_t time = 0;
-  for (int i = 0; i < ESET_SIZE; i++) {
-    memory_fence();
-    time += probe_prefetch(eset[i]);
-    memory_fence();
-  }
-  return time;
-}
-
-void gen_eset(void *target, void **eset, void *addr);
+void gen_eset(size_t addr, void **eset_stlb, void **eset_dtlb);
+void gen_eset_pc(size_t addr, void **eset_stlb, void **eset_dtlb);
+void prime(void **eset_stlb);
+void prime_l1(void **eset_dtlb);
+uint64_t probe(void **eset);
+uint64_t probe_pc(void **eset);
+uint64_t probe_l1(void **eset);
+uint64_t probe_l1_pc(void **eset);
+void get_timer_overhead(void);
+void pin_to_core(size_t core);
+void init_tlb_flush(void);
+void maccess(void *p);
+void cache_flush(void **eset);
+// void gen_eset_sysbumps(size_t target, void **eset_l1, void **eset_l2, size_t base_offset);
 
 #endif

