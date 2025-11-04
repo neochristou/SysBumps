@@ -5,7 +5,7 @@ VPATH = $(CURDIR) $(COMDIR)
 
 COMDIR = ../common
 
-CFLAGS = -g -w -I./ -I$(COMDIR) -O2
+CFLAGS = -g -w -I./ -I$(COMDIR)
 
 OBJS = main.o memory.o
 

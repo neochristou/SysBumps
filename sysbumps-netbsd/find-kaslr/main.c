@@ -111,6 +111,7 @@ int main(int argc, char *argv[]) {
   setvbuf(stdin, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
 
+  get_timer_overhead();
   init_tlb_flush();
 
   get_cycle(&valid_cycle, &invalid_cycle);
