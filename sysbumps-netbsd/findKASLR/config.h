@@ -21,10 +21,11 @@
 //    0xb5: instruction TLB: 4K, 8-way, 64 entries
 //    0xc3: L2 TLB: 4K/2M pages, 6-way, 1536 entries
 
-#define NUM_SLOT ((KERN_MAP_MAX_ADDR - KERN_MAP_MIN_ADDR) / ALIGN_SIZE)
 #define ITERATION 10
 #define PAGE_SIZE     0x1000
 #define ALIGN_SIZE    PAGE_SIZE
+#define NUM_SLOT ((KERN_MAP_MAX_ADDR - KERN_MAP_MIN_ADDR) / ALIGN_SIZE)
+
 #define L1_DTLB_SETS   16
 #define L1_DTLB_WAYS   4
 #define L2_TLB_SETS    256

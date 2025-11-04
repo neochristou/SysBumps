@@ -28,30 +28,27 @@
 // Hashsize is probably the number of sets because we logical and with this to
 // get the set number
 #define STLB_HASHSIZE_4K 7
-#define STLB_HASHSIZE_2M 7
 #define DTLB_HASHSIZE_4K 4
-#define DTLB_HASHSIZE_2M 3
 #define STLB_WAYS_4K 12
-#define STLB_WAYS_2M 12
 #define DTLB_WAYS_4K 4
-#define DTLB_WAYS_2M 3
 #define STLB_EVSET_SIZE_4K (STLB_WAYS_4K)
-#define STLB_EVSET_SIZE_2M (STLB_WAYS_2M)
 #define DTLB_EVSET_SIZE_4K (DTLB_WAYS_4K)
 #define DTLB_EVSET_SIZE_2M (DTLB_WAYS_2M)
-// #define STLB_WAYS_4K 12
-// #define STLB_WAYS_2M 8
-// #define DTLB_WAYS_4K 6
-// #define DTLB_WAYS_2M 4
 #define STLB_HASHMASK_4K ((1 << STLB_HASHSIZE_4K) - 1)
-#define STLB_HASHMASK_2M ((1 << STLB_HASHSIZE_2M) - 1)
 #define DTLB_HASHMASK_4K ((1 << DTLB_HASHSIZE_4K) - 1)
-#define DTLB_HASHMASK_2M ((1 << DTLB_HASHSIZE_2M) - 1)
 #define STLB_SET_4K(addr)                                                      \
   (((addr >> PAGESIZE_4K) ^ (addr >> (PAGESIZE_4K + STLB_HASHSIZE_4K))) &      \
    STLB_HASHMASK_4K)
-#define STLB_SET_2M(addr) (((addr >> PAGESIZE_2M)) & STLB_HASHMASK_2M)
 #define DTLB_SET_4K(addr) ((addr >> PAGESIZE_4K) & DTLB_HASHMASK_4K)
+
+#define STLB_WAYS_2M 6
+#define DTLB_WAYS_2M 3
+#define STLB_HASHSIZE_2M 8
+#define DTLB_HASHSIZE_2M 3
+#define STLB_EVSET_SIZE_2M (STLB_WAYS_2M)
+#define STLB_HASHMASK_2M ((1 << STLB_HASHSIZE_2M) - 1)
+#define DTLB_HASHMASK_2M ((1 << DTLB_HASHSIZE_2M) - 1)
+#define STLB_SET_2M(addr) (((addr >> PAGESIZE_2M)) & STLB_HASHMASK_2M)
 #define DTLB_SET_2M(addr) ((addr >> PAGESIZE_2M) & DTLB_HASHMASK_2M)
 
 #define FLUSH_SET_SIZE                                                         \
