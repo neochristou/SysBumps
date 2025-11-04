@@ -1,8 +1,11 @@
+#ifdef __gnu_linux__
 #define _GNU_SOURCE
-#include <pwd.h>
 #include <sched.h>
+#endif
+#include <pwd.h>
 #include <stdio.h>
 #include <string.h>
+#include <sched.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
@@ -28,9 +31,10 @@ uint8_t *flush_set;
 unsigned long timer_overhead;
 // uint8_t *flush_set_2M;
 
-// TODO adapt this for netbsd
 void pin_to_core(size_t core) {
   int ret;
+
+#ifdef __gnu_linux__
   cpu_set_t cpuset;
 
   CPU_ZERO(&cpuset);
@@ -41,6 +45,28 @@ void pin_to_core(size_t core) {
     perror("sched_setaffinity: ");
     exit(-1);
   }
+#else
+  cpuset_t *set;
+
+  set = cpuset_create();
+  if (set == NULL) {
+    perror("cpuset_create: ");
+    exit(-1);
+  }
+
+  cpuset_zero(set);
+  cpuset_set(core, set);
+
+  ret = _sched_setaffinity(/* calling thread */0, /* lid */0,
+            cpuset_size(set), set);
+  if (ret == -1) {
+    perror("_sched_setaffinity: ");
+    cpuset_destroy(set);
+    exit(-1);
+  }
+
+  cpuset_destroy(set);
+#endif
 }
 
 void maccess(void *p) { asm volatile("movq (%0), %%rax\n" : : "c"(p) : "rax"); }
@@ -241,7 +267,7 @@ size_t hit_accurate(size_t addr, size_t tries) {
   return time <= THRESHOLD;
 }
 
-// static inline __attribute__((always_inline))
+inline __attribute__((always_inline))
 void prime_stlb(void **eset_stlb) {
   memory_fence();
   for (int i = 0; i < STLB_EVSET_SIZE_4K; i++) {
@@ -250,6 +276,7 @@ void prime_stlb(void **eset_stlb) {
   memory_fence();
 }
 
+inline __attribute__((always_inline))
 void prime_dtlb(void **eset_dtlb) {
   memory_fence();
   for (int i = 0; i < DTLB_EVSET_SIZE_4K; i++) {
@@ -258,7 +285,7 @@ void prime_dtlb(void **eset_dtlb) {
   memory_fence();
 }
 
-// static inline __attribute__((always_inline))
+inline __attribute__((always_inline))
 uint64_t probe_stlb(void **eset) {
   uint64_t time = 0, tmp = 0;
   memory_fence();
@@ -274,6 +301,7 @@ uint64_t probe_stlb(void **eset) {
   return time;
 }
 
+inline __attribute__((always_inline))
 uint64_t probe_stlb_pc(void **eset) {
   unsigned long t1; /* start time */
   unsigned long t2; /* end time */
@@ -299,6 +327,7 @@ uint64_t probe_stlb_pc(void **eset) {
   return t2 - t1 - timer_overhead;
 }
 
+inline __attribute__((always_inline))
 uint64_t probe_dtlb_pc(void **eset) {
   unsigned long t1; /* start time */
   unsigned long t2; /* end time */
@@ -324,6 +353,7 @@ uint64_t probe_dtlb_pc(void **eset) {
   return t2 - t1 - timer_overhead;
 }
 
+inline __attribute__((always_inline))
 uint64_t probe_dtlb(void **eset) {
   uint64_t time = 0, tmp = 0;
   memory_fence();
@@ -338,6 +368,7 @@ uint64_t probe_dtlb(void **eset) {
   return time;
 }
 
+inline __attribute__((always_inline))
 void gen_eset_dtlb(size_t addr, void **eset_dtlb) {
   size_t dtlb_set = DTLB_SET_4K(addr);
   size_t flush_base = (size_t)flush_set;
@@ -359,6 +390,7 @@ void gen_eset_dtlb(size_t addr, void **eset_dtlb) {
   }
 }
 
+inline __attribute__((always_inline))
 void gen_eset_stlb(size_t addr, void **eset_stlb) {
   size_t stlb_set = STLB_SET_4K(addr);
   size_t flush_base = (size_t)flush_set;
@@ -380,6 +412,7 @@ void gen_eset_stlb(size_t addr, void **eset_stlb) {
   }
 }
 
+inline __attribute__((always_inline))
 void gen_eset_dtlb_pc(size_t addr, void **eset_dtlb) {
   size_t dtlb_set = DTLB_SET_4K(addr);
   size_t flush_base = (size_t)flush_set;
@@ -404,6 +437,7 @@ void gen_eset_dtlb_pc(size_t addr, void **eset_dtlb) {
   }
 }
 
+inline __attribute__((always_inline))
 void gen_eset_stlb_pc(size_t addr, void **eset_stlb) {
   size_t stlb_set = STLB_SET_4K(addr);
   size_t flush_base = (size_t)flush_set;

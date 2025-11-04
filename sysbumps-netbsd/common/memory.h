@@ -28,8 +28,10 @@
 // Hashsize is probably the number of sets because we logical and with this to
 // get the set number
 #define STLB_HASHSIZE_4K 7
+//#define STLB_HASHSIZE_4K 8
 #define DTLB_HASHSIZE_4K 4
 #define STLB_WAYS_4K 12
+//#define STLB_WAYS_4K 6
 #define DTLB_WAYS_4K 4
 #define STLB_EVSET_SIZE_4K (STLB_WAYS_4K)
 #define DTLB_EVSET_SIZE_4K (DTLB_WAYS_4K)
