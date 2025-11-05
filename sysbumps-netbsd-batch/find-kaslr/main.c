@@ -165,8 +165,8 @@ int main(int argc, char *argv[]) {
           prime(eset);
           leak_val(target[j]);
         }
-	res[idx] += probe(eset);
       }
+      res[idx] += probe(eset);
     }
   }
 
