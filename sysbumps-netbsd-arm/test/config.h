@@ -12,15 +12,20 @@
 //#define DATA_END_OFFSET 0x52D8000
 //#define CNT 1
 
+#define ITERATION   	  20
+#define TRAINING_ITERS 	  10
+
 #define PAGE_SIZE 	  0x1000
 #define PAGESHIFT 	  12 // log2(PAGE_SIZE)
+			     
 #define WAYS 		  12
-#define SETS 		  256
+#define SETS 		  (256 * 4)
 #define SET_SHIFT 	  8 // log2(SETS)
+//#define ESET_OFFSET 	  (PAGE_SIZE * SETS * 4)
 #define ESET_OFFSET 	  (PAGE_SIZE * SETS)
-#define ESET_SIZE WAYS
+#define ESET_SIZE 	  WAYS
+#define ALIGN_SIZE 	  PAGE_SIZE
 
-#define ALIGN_SIZE PAGE_SIZE
 //#define KERNBASE          0xffffffff80000000
 //#define KERNTEXTOFF       0xffffffff80200000
 #define KERNBASE          0xffffc00000000000
@@ -36,10 +41,7 @@
 //#define END_SEARCH      (0xFFFFC00040000000 + 1824 * 1024 + (10 * PAGE_SIZE))
 #define NUM_SLOT ((END_SEARCH - START_SEARCH) / ALIGN_SIZE)
 //#define NUM_SLOT ((KERN_MAP_MAX_ADDR - KERN_MAP_MIN_ADDR) / ALIGN_SIZE)
-
 //#define NUM_SLOT ((KER_END - KER_START)/ALIGN_SIZE)
-#define ITERATION 20
-#define TRAINING_ITERS 10
 
 #endif
 

@@ -10,7 +10,7 @@
 
 #define NPAGES (WAYS * SETS)
 #define ITERATIONS 10000
-#define PAGE_OFFSET 0UL
+#define PAGE_OFFSET (PAGE_SIZE / 2)
 #define ACCESS_PAGE 3
 
 #define TLB_SET(addr) (((uint64_t)addr >> PAGESHIFT) & ((1 << SET_SHIFT) - 1))
@@ -50,7 +50,7 @@ int main() {
 	// No access
 	printf("Noise test:\n");
 	for (int i = 0; i < NPAGES; i++) {
-		test_addr = pages + i * PAGE_SIZE;
+		test_addr = pages + i * PAGE_SIZE + PAGE_OFFSET;
 		tmp = 0;
 		gen_eset(test_addr, eset, &eset_data[0]);
 		for (int r = 0; r < ITERATIONS; r++) {
@@ -67,7 +67,7 @@ int main() {
 	// Access
 	printf("Access test:\n");
 	for (int i = 0; i < NPAGES; i++) {
-		test_addr = pages + i * PAGE_SIZE;
+		test_addr = pages + i * PAGE_SIZE + PAGE_OFFSET;
 		tmp = 0;
 		gen_eset(test_addr, eset, &eset_data[0]);
 		//printf("Eset for %p, access at %p\n", 
