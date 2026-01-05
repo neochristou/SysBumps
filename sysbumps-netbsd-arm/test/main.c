@@ -10,7 +10,7 @@
 
 #define NPAGES (WAYS * SETS)
 #define ITERATIONS 10000
-#define PAGE_OFFSET (PAGE_SIZE / 2)
+#define PAGE_OFFSET 0
 #define ACCESS_PAGE 3
 
 #define TLB_SET(addr) (((uint64_t)addr >> PAGESHIFT) & ((1 << SET_SHIFT) - 1))
@@ -25,6 +25,7 @@ int main() {
 
 	printf("Page size: %#x\n", PAGE_SIZE);
 	printf("Total test pages: %d\n", NPAGES);
+	printf("Code at: %p (set %d)\n", &main, TLB_SET(&main));
 
 	eset_data = (char *) malloc(sizeof(char) * ESET_OFFSET * PAGE_SIZE);
 	if (0 != posix_memalign(&pages, PAGE_SIZE, sizeof(char) * NPAGES * PAGE_SIZE)) {
@@ -32,7 +33,9 @@ int main() {
 		exit(1);
 	}
 
-	char *access_addr = pages + ACCESS_PAGE * PAGE_SIZE + PAGE_OFFSET;
+	char *access_addr; 
+	posix_memalign(&access_addr, PAGE_SIZE, PAGE_SIZE);
+
 	printf("Access at %p (set %d, page offset %lu)\n", access_addr, 
 			TLB_SET(access_addr), PAGE_OFFSET);
 
