@@ -13,9 +13,10 @@
 #include "config.h"
 
 #define NPAGES_BUFFER     50
-#define NPAGES_BEFORE     20 
-#define NPAGES_AFTER      20
-#define VALID_HITS_TARGET 5
+#define NGUARD_PAGES      20
+#define NPAGES_BEFORE     25
+#define NPAGES_AFTER      25
+#define VALID_HITS_TARGET 10
 
 
 #define REPS 10000
@@ -25,6 +26,7 @@ int g_fd = -1;
 
 struct alloc_args {
     int  npages;
+    int  nguard_pages;
     uint64_t buffer_addr;
 } __attribute__((packed));
 
@@ -42,9 +44,10 @@ int setup_driver(void) {
     return 0;
 }
 
-unsigned long alloc_kernel_buf(int npages) {
+unsigned long alloc_kernel_buf(int npages, int nguard_pages) {
     struct alloc_args args;
     args.npages = npages;
+    args.nguard_pages = nguard_pages;
 
     if (ioctl(g_fd, TLBMOD_ALLOC_PAGE, &args) == -1) {
         perror("[-] ioctl alloc failed");
@@ -54,10 +57,11 @@ unsigned long alloc_kernel_buf(int npages) {
     return args.buffer_addr;
 }
 
-int free_kernel_buf(unsigned long kva, int npages) {
+int free_kernel_buf(unsigned long kva, int npages, int nguard_pages) {
 
     struct alloc_args args;
     args.npages = npages;
+    args.nguard_pages = nguard_pages;
     args.buffer_addr = kva;
 
     if (kva == 0) {
@@ -144,7 +148,7 @@ int main(int argc, char * argv[]){
 
     int64_t idx = 0;
 
-    char *kernel_buf = (char *)alloc_kernel_buf(NPAGES_BUFFER);
+    char *kernel_buf = (char *)alloc_kernel_buf(NPAGES_BUFFER, NGUARD_PAGES);
     uint64_t buffer_size = NPAGES_BUFFER * PAGE_SIZE;
 
     char *start_search = kernel_buf - NPAGES_BEFORE * PAGE_SIZE;
@@ -222,7 +226,7 @@ int main(int argc, char * argv[]){
     double end = (tv_e.tv_sec) * 1000 + (tv_e.tv_usec)/1000.0;
     double diff = (end - start) /1000.0;
 
-    void *buf_found_addr = end_buf_addr - buffer_size;
+    void *buf_found_addr = end_buf_addr - buffer_size + PAGE_SIZE;
 
 #ifdef __DEBUG
     char * dfp = fopen(RESULT_FILE, "w");
@@ -239,7 +243,7 @@ int main(int argc, char * argv[]){
     } else {
         printf("Kernel buffer not found\n");
     }
-    free_kernel_buf(kernel_buf, NPAGES_BUFFER);
+    free_kernel_buf(kernel_buf, NPAGES_BUFFER, NGUARD_PAGES);
     stop_timer();    
     return 0;
 }
