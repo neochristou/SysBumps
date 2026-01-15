@@ -7,7 +7,7 @@
 #define RESULT_FILE "../util/res"
 
 #define ITERATION   	  1000
-#define TRAINING_ITERS 	  4
+#define TRAINING_ITERS 	  6
 
 #define PAGE_SIZE 	  0x1000ULL
 #define PAGESHIFT 	  12 // log2(PAGE_SIZE)
